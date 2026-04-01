@@ -131,3 +131,11 @@ enum ActivityType {
   UPDATE_EXPENSE
   DELETE_EXPENSE
 }
+
+model AiRequestLog {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
