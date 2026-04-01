@@ -237,6 +237,7 @@ enableAiAssistant: process.env.NEXT_PUBLIC_ENABLE_AI_ASSISTANT === 'true'
 ```
 NEXT_PUBLIC_ENABLE_AI_ASSISTANT=false
 ANTHROPIC_API_KEY=
+AI_RATE_LIMIT_PER_USER_PER_DAY=20
 ```
 
 **New package:**
@@ -246,6 +247,17 @@ ANTHROPIC_API_KEY=
 langchain
 ```
 
+**New Prisma model (for rate limiting):**
+```prisma
+model AiRequestLog {
+  id          String   @id @default(cuid())
+  userId      String   // group participant ID or session identifier
+  createdAt   DateTime @default(now())
+}
+```
+
+A migration will be required: `npx prisma migrate dev --name add-ai-request-log`
+
 ---
 
 ## Voice Input
@@ -254,6 +266,43 @@ langchain
 - Hold-to-record on the mic button; result populates the text field on release
 - No fallback (browser support message shown if API unavailable)
 - Compatible with Capacitor for future Google Play Store distribution
+
+---
+
+## Security & Rate Limiting
+
+### Rate Limiting
+
+Database-based rate limiting using the existing PostgreSQL instance — no additional dependencies required. A new `AiRequestLog` table records each AI parse request per user (identified by group participant or session).
+
+**Default limit:** 20 requests per user per day, configurable via env var:
+```
+AI_RATE_LIMIT_PER_USER_PER_DAY=20
+```
+
+When the limit is exceeded, the server action returns a clear error and the modal displays: *"You've reached your daily AI limit. Try again tomorrow."*
+
+**Future:** Tie the limit to subscription tier — free users get 10/day, paid users get unlimited. This aligns with the Google Play Store monetisation plan.
+
+### Input Validation & Sanitization
+
+Applied in the server action before the text reaches LangChain:
+
+- **Max length:** 500 characters — requests exceeding this are rejected immediately with a client-side error
+- **Empty input guard:** Blank or whitespace-only input is rejected before any API call
+- **Control character stripping:** Non-printable Unicode characters are stripped server-side
+
+### Prompt Injection Prevention
+
+- **Strict output schema:** The Zod parser rejects any AI response that doesn't conform to the expected structure — injected instructions cannot change the output shape
+- **Clear prompt boundaries:** User input is always passed as a `HumanMessage`, never string-interpolated into the system prompt. The system prompt contains only static context (participant list, categories, today's date)
+- **No sensitive data in prompts:** Only participant names and IDs are included — no emails, passwords, payment details, or expense history
+
+### Cost Control
+
+- **Token budget:** `max_tokens: 512` set on every `ChatAnthropic` call — sufficient for structured extraction, prevents runaway responses
+- **Server-side API key:** `ANTHROPIC_API_KEY` has no `NEXT_PUBLIC_` prefix and never reaches the browser
+- **Feature flag off by default:** `NEXT_PUBLIC_ENABLE_AI_ASSISTANT=false` in `.env.example` — self-hosters must explicitly opt in, preventing accidental cost exposure
 
 ---
 
