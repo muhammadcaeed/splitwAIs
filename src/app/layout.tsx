@@ -5,6 +5,8 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/toaster'
+import { AiAssistantFab } from '@/components/ai-assistant/ai-assistant-fab'
+import { getRuntimeFeatureFlags } from '@/lib/featureFlags'
 import { env } from '@/lib/env'
 import { TRPCProvider } from '@/trpc/client'
 import type { Metadata, Viewport } from 'next'
@@ -63,7 +65,13 @@ export const viewport: Viewport = {
   themeColor: '#047857',
 }
 
-function Content({ children }: { children: React.ReactNode }) {
+function Content({
+  children,
+  enableAiAssistant,
+}: {
+  children: React.ReactNode
+  enableAiAssistant: boolean
+}) {
   const t = useTranslations()
   return (
     <TRPCProvider>
@@ -142,6 +150,7 @@ function Content({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </footer>
+      {enableAiAssistant && <AiAssistantFab />}
       <Toaster />
     </TRPCProvider>
   )
@@ -154,6 +163,8 @@ export default async function RootLayout({
 }) {
   const locale = await getLocale()
   const messages = await getMessages()
+  const { enableAiAssistant } = await getRuntimeFeatureFlags()
+
   return (
     <html lang={locale} suppressHydrationWarning>
       <ApplePwaSplash icon="/logo-with-text.png" color="#027756" />
@@ -168,7 +179,7 @@ export default async function RootLayout({
             <Suspense>
               <ProgressBar />
             </Suspense>
-            <Content>{children}</Content>
+            <Content enableAiAssistant={enableAiAssistant}>{children}</Content>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>
