@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-set -euxo pipefail
+set -eu
 
 npx prisma migrate deploy
 exec npm run start

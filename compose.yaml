@@ -13,13 +13,13 @@ services:
       - spliit_network
 
   db:
-    image: postgres:latest
+    image: postgres:18-alpine
     expose:
       - 5432
     env_file:
       - container.env
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
@@ -31,3 +31,6 @@ services:
 networks:
   spliit_network:
     driver: bridge
+
+volumes:
+  postgres-data:
